@@ -1,5 +1,6 @@
 // Chế độ bot: nhận lệnh Telegram + cào tự động theo lịch cron.
 import fs from 'node:fs/promises';
+import http from 'node:http';
 import path from 'node:path';
 import cron from 'node-cron';
 import { config } from './config.js';
@@ -116,6 +117,16 @@ cron.schedule(config.cron, () => {
 });
 
 log.info(`Bot đang chạy · lịch cào "${config.cron}"${paused ? ' (đang tạm dừng, /resume để bật)' : ''} · phân loại bằng ${classifierName} · chat nhận: ${config.telegramChatId || '(chưa đặt TELEGRAM_CHAT_ID)'}`);
+// Nền tảng deploy chuyển request vào PORT và chờ server nhận kết nối mới coi là đã chạy.
+if (config.port) {
+  http
+    .createServer((req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, paused, crawling: Boolean(current) }));
+    })
+    .listen(config.port, '0.0.0.0', () => log.info(`HTTP health check tại cổng ${config.port}`));
+}
+
 await bot.api.setMyCommands([
   { command: 'crawl', description: 'Cào ngay' },
   { command: 'stop', description: 'Ngừng thu thập' },

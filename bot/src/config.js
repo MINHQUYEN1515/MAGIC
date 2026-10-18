@@ -8,6 +8,8 @@ const int = (v, d) => (Number.isFinite(Number.parseInt(v, 10)) ? Number.parseInt
 export const config = {
   telegramToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+  // Cổng HTTP cho health check (Vercel/Render... đặt sẵn PORT). Không đặt thì không mở cổng.
+  port: int(process.env.PORT, 0),
   cron: process.env.CRON_SCHEDULE || '0 */6 * * *',
   maxPerSource: int(process.env.MAX_PER_SOURCE, 8),
   maxFileBytes: Math.min(int(process.env.MAX_FILE_MB, 45), 50) * 1024 * 1024,
