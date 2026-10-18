@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import cron from 'node-cron';
+import { GrammyError } from 'grammy';
 import { config } from './config.js';
 import { crawl } from './crawler.js';
 import { Store } from './store.js';
@@ -10,6 +11,7 @@ import { classifierName } from './classify/index.js';
 import { REGIONS, TYPES } from './classify/categories.js';
 import { createTelegram } from './telegram.js';
 import { createLogger } from './logger.js';
+import { sleep } from './http.js';
 
 const log = createLogger('bot');
 
@@ -112,8 +114,10 @@ bot.command('stats', async (ctx) => {
 
 bot.catch((err) => log.error(`Lỗi xử lý tin nhắn: ${err.message}`));
 
+// Chỉ instance đang giữ long polling mới cào theo lịch, để lúc deploy chồng nhau không gửi trùng.
+let polling = false;
 cron.schedule(config.cron, () => {
-  if (!paused) runCrawl('cron');
+  if (!paused && polling) runCrawl('cron');
 });
 
 log.info(`Bot đang chạy · lịch cào "${config.cron}"${paused ? ' (đang tạm dừng, /resume để bật)' : ''} · phân loại bằng ${classifierName} · chat nhận: ${config.telegramChatId || '(chưa đặt TELEGRAM_CHAT_ID)'}`);
@@ -133,4 +137,31 @@ await bot.api.setMyCommands([
   { command: 'resume', description: 'Bật lại cào tự động' },
   { command: 'stats', description: 'Thống kê' },
 ]).catch((err) => log.warn(`Không đặt được menu lệnh: ${err.message}`));
-await bot.start();
+// Nền tảng tắt container cũ khi deploy bản mới: dừng polling gọn để bản mới nhận getUpdates ngay.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => {
+    log.info(`Nhận ${signal} → dừng bot`);
+    polling = false;
+    bot.stop().finally(() => process.exit(0));
+  });
+}
+
+// 409: Telegram chỉ cho một tiến trình getUpdates mỗi token. Thường là bản deploy cũ chưa tắt
+// hoặc đang chạy thêm `npm start` ở máy khác → đợi rồi thử lại thay vì crash.
+for (let attempt = 1; ; attempt++) {
+  try {
+    await bot.start({
+      onStart: (me) => {
+        polling = true;
+        log.info(`Đã kết nối Telegram: @${me.username}`);
+      },
+    });
+    break; // bot.stop() được gọi
+  } catch (err) {
+    polling = false;
+    if (!(err instanceof GrammyError && err.error_code === 409)) throw err;
+    const wait = Math.min(60, 10 * attempt);
+    log.warn(`Telegram 409: đang có bot khác chạy cùng TELEGRAM_BOT_TOKEN (bản deploy cũ hoặc máy khác) → thử lại sau ${wait}s (lần ${attempt})`);
+    await sleep(wait * 1000);
+  }
+}
