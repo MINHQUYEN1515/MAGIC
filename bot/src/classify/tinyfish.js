@@ -10,8 +10,30 @@ const MAX_CHARS = 3_000;
 const MAX_STEPS = 15;
 const TIMEOUT_MS = 5 * 60_000;
 
-// TinyFish không hỗ trợ additionalProperties trong output_schema.
-const { additionalProperties, ...OUTPUT_SCHEMA } = SCHEMA;
+// output_schema của TinyFish chỉ nhận một số từ khoá JSON Schema (không có description, additionalProperties...).
+const ALLOWED_KEYS = new Set(['type', 'properties', 'required', 'items', 'enum', 'format', 'nullable', 'minimum', 'maximum', 'minItems', 'maxItems', 'anyOf']);
+
+function toOutputSchema(node) {
+  if (Array.isArray(node)) return node.map(toOutputSchema);
+  if (!node || typeof node !== 'object') return node;
+  const out = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (!ALLOWED_KEYS.has(k)) continue;
+    // Tên trường trong properties là dữ liệu, không phải từ khoá: giữ nguyên tên, chỉ lọc schema con.
+    out[k] = k === 'properties'
+      ? Object.fromEntries(Object.entries(v).map(([name, sub]) => [name, toOutputSchema(sub)]))
+      : toOutputSchema(v);
+  }
+  return out;
+}
+
+export const OUTPUT_SCHEMA = toOutputSchema(SCHEMA);
+
+// Mô tả từng trường (bị bỏ khỏi schema) chuyển vào goal để agent vẫn biết phải viết gì.
+const FIELD_GUIDE = Object.entries(SCHEMA.properties)
+  .filter(([, p]) => p.description)
+  .map(([name, p]) => `- ${name}: ${p.description}`)
+  .join('\n');
 
 /** Lỗi mang status/code giống SDK OpenAI để classify/index.js xử lý thử lại/tạm dừng chung. */
 class TinyFishError extends Error {
@@ -28,6 +50,7 @@ export function createTinyFishClassifier({ apiKey }) {
     const imageList = images.map((img, i) => `${i + 1}. ${img.url}${img.description ? ` — ${img.description}` : ''}`).join('\n');
     const goal = [
       SYSTEM,
+      `Ý nghĩa các trường kết quả:\n${FIELD_GUIDE}`,
       `Hãy đọc trang này (tiêu đề "${title}", nguồn ${source}) và xem các ảnh trên trang, rồi trả kết quả theo schema. Không đăng nhập, không bấm sang trang khác.`,
       images.length ? `Có ${images.length} ảnh cần mô tả trong hinh_anh, theo đúng thứ tự:\n${imageList}` : 'Không có ảnh: hinh_anh để rỗng.',
       text ? `Trích nội dung:\n${text.slice(0, MAX_CHARS)}` : null,

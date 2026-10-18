@@ -1,6 +1,6 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTinyFishClassifier } from '../src/classify/tinyfish.js';
+import { createTinyFishClassifier, OUTPUT_SCHEMA } from '../src/classify/tinyfish.js';
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -36,4 +36,20 @@ test('402 (ví hết tiền) → lỗi status 402', async () => {
 test('run FAILED → lỗi', async () => {
   globalThis.fetch = reply(200, { status: 'FAILED', result: null, error: { message: 'blocked' } });
   await assert.rejects(createTinyFishClassifier({ apiKey: 'k' })(doc), /thất bại \(FAILED\)/);
+});
+
+test('output_schema chỉ chứa từ khoá TinyFish hỗ trợ (không description/additionalProperties)', () => {
+  const bad = [];
+  const walk = (node, at) => {
+    for (const [k, v] of Object.entries(node)) {
+      if (['description', 'additionalProperties'].includes(k)) bad.push(`${at}/${k}`);
+      if (k === 'properties') for (const [name, sub] of Object.entries(v)) walk(sub, `${at}/properties/${name}`);
+      else if (k === 'items') walk(v, `${at}/items`);
+    }
+  };
+  walk(OUTPUT_SCHEMA, '#');
+  assert.deepEqual(bad, []);
+  assert.ok(OUTPUT_SCHEMA.properties.relevant.type === 'boolean');
+  assert.ok(OUTPUT_SCHEMA.properties.region.enum.length > 0);
+  assert.ok(OUTPUT_SCHEMA.required.includes('hinh_anh'));
 });
