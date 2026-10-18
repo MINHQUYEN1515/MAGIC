@@ -113,7 +113,7 @@ export function renderExplanationPdf({ doc, cls, images }, outPath) {
     rule(pdf, width);
     pdf.font('regular').fontSize(8).fillColor(COLOR.muted).text(
       'Tài liệu tổng hợp phục vụ tìm hiểu văn hoá dân gian. Nội dung mô tả niềm tin truyền thống, không phải khẳng định khoa học. ' +
-        `Phân loại bằng ${cls.method === 'openai' ? 'OpenAI' : 'từ khoá'}.`,
+        `Phân loại bằng ${{ openai: 'OpenAI', tinyfish: 'TinyFish' }[cls.method] ?? 'từ khoá'}.`,
     );
 
     pdf.end();

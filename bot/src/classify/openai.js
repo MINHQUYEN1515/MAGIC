@@ -4,7 +4,7 @@ import { REGIONS, TYPES } from './categories.js';
 // Chỉ gửi phần đầu văn bản: đủ để phân loại, tránh tốn token với tài liệu dài.
 const MAX_CHARS = 12_000;
 
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   properties: {
     relevant: {
@@ -29,7 +29,7 @@ const SCHEMA = {
   additionalProperties: false, // bắt buộc với strict structured outputs
 };
 
-const SYSTEM = `Bạn là nhà nghiên cứu văn hoá dân gian, phân loại và giải thích tư liệu về bùa ngải ở Trung Quốc, Việt Nam và các dân tộc thiểu số. Viết bằng tiếng Việt.
+export const SYSTEM = `Bạn là nhà nghiên cứu văn hoá dân gian, phân loại và giải thích tư liệu về bùa ngải ở Trung Quốc, Việt Nam và các dân tộc thiểu số. Viết bằng tiếng Việt.
 
 Khu vực (region):
 ${Object.entries(REGIONS).map(([id, r]) => `- ${id}: ${r.label}`).join('\n')}

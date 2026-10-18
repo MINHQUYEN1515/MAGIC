@@ -15,6 +15,7 @@ export const config = {
   maxFileBytes: Math.min(int(process.env.MAX_FILE_MB, 45), 50) * 1024 * 1024,
   maxImages: Math.min(int(process.env.MAX_IMAGES, 6), 10),
   requestDelayMs: int(process.env.REQUEST_DELAY_MS, 1500),
+  tinyfishApiKey: process.env.TINYFISH_API_KEY || '',
   openaiApiKey: process.env.OPENAI_API_KEY || '',
   openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   contact: process.env.BOT_CONTACT || '',

@@ -12,7 +12,8 @@ cp .env.example .env
 1. Tạo bot với [@BotFather](https://t.me/BotFather), dán token vào `TELEGRAM_BOT_TOKEN`.
 2. `npm start`, nhắn `/start` cho bot (hoặc thêm bot vào nhóm rồi gõ `/start`) → bot trả về chat ID.
 3. Dán chat ID vào `TELEGRAM_CHAT_ID`, khởi động lại.
-4. (Tuỳ chọn) điền `OPENAI_API_KEY` (lấy tại [platform.openai.com](https://platform.openai.com/api-keys)) để phân loại
+4. (Tuỳ chọn) điền `TINYFISH_API_KEY` để agent TinyFish mở trang tài liệu, phân loại và viết giải thích
+   (mỗi lượt trừ tiền ví TinyFish; có key này thì bỏ qua OpenAI). Hoặc điền `OPENAI_API_KEY` (lấy tại [platform.openai.com](https://platform.openai.com/api-keys)) để phân loại
    bằng OpenAI (`OPENAI_MODEL`, mặc định `gpt-4o-mini`): chính xác hơn, lọc nhiễu tốt hơn, xem được ảnh và viết
    giải thích tiếng Việt. Không có key thì bot phân loại bằng từ khoá.
 
@@ -93,7 +94,7 @@ src/
   cli.js             cào một lần
   crawler.js         cào → phân loại → lưu → gửi
   sources/           commons.js, wikipedia.js, archive.js, wikimedia.js
-  classify/          categories.js (+ giải thích mặc định), keywords.js, openai.js
+  classify/          categories.js (+ giải thích mặc định), keywords.js, openai.js, tinyfish.js
   pdf.js             tạo giai-thich.pdf
   telegram.js        định dạng caption, gửi album ảnh + PDF
   store.js           chống gửi trùng
