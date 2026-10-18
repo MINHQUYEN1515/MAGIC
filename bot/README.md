@@ -25,7 +25,9 @@ cp .env.example .env
 | `npm run crawl:dry` | Cào một lần, chỉ lưu file local, không gửi, không ghi nhớ |
 | `npm test` | Test bộ phân loại |
 
-Lệnh trong Telegram (chỉ chat `TELEGRAM_CHAT_ID` được dùng): `/start`, `/crawl`, `/stats`.
+Lệnh trong Telegram (chỉ chat `TELEGRAM_CHAT_ID` được dùng): `/start`, `/crawl`, `/stop`, `/resume`, `/stats`.
+`/stop` ngừng thu thập: dừng lượt đang chạy (sau tài liệu hiện tại) và tắt cào tự động, kể cả sau khi khởi động lại
+(lưu ở `data/bot-state.json`). `/resume` bật lại; `/crawl` vẫn cào thủ công được khi đang tạm dừng.
 
 Log in ra màn hình (hoặc `docker compose logs -f`) theo từng bước: tìm kiếm, tải ảnh/PDF, phân loại, lưu, gửi.
 Đặt `LOG_LEVEL=debug` để xem chi tiết từng request và từng ảnh, ví dụ `LOG_LEVEL=debug npm run crawl:dry`.

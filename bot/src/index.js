@@ -1,4 +1,6 @@
 // Chế độ bot: nhận lệnh Telegram + cào tự động theo lịch cron.
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import cron from 'node-cron';
 import { config } from './config.js';
 import { crawl } from './crawler.js';
@@ -26,21 +28,37 @@ bot.use((ctx, next) => {
   return next();
 });
 
-let running = false;
+// Trạng thái tạm dừng cào tự động, lưu ra file để khởi động lại vẫn giữ.
+const stateFile = path.join(config.dataDir, 'bot-state.json');
+let paused = false;
+try {
+  paused = Boolean(JSON.parse(await fs.readFile(stateFile, 'utf8')).paused);
+} catch (err) {
+  if (err.code !== 'ENOENT') log.warn(`Không đọc được ${stateFile}: ${err.message}`);
+}
+
+async function setPaused(value) {
+  paused = value;
+  await fs.mkdir(config.dataDir, { recursive: true });
+  await fs.writeFile(stateFile, JSON.stringify({ paused }, null, 2));
+  log.info(paused ? 'Đã tạm dừng cào tự động' : 'Đã bật lại cào tự động');
+}
+
+let current = null; // AbortController của lượt cào đang chạy
 async function runCrawl(trigger) {
   if (!config.telegramChatId) return 'Chưa cấu hình TELEGRAM_CHAT_ID';
-  if (running) return 'Đang cào rồi, đợi lượt hiện tại xong nhé.';
-  running = true;
+  if (current) return 'Đang cào rồi, đợi lượt hiện tại xong nhé.';
+  current = new AbortController();
   log.info(`Kích hoạt cào: ${trigger}`);
   try {
-    const r = await crawl({ telegram });
-    return `✅ Xong: ${r.sent} tài liệu mới, ${r.skipped} không liên quan, ${r.errors} lỗi.`;
+    const r = await crawl({ telegram, signal: current.signal });
+    return `${r.stopped ? '⏹ Đã dừng' : '✅ Xong'}: ${r.sent} tài liệu mới, ${r.skipped} không liên quan, ${r.errors} lỗi.`;
   } catch (err) {
     log.error(`Lượt cào thất bại: ${err.message}`);
     log.debug(err.stack);
     return `❌ Lỗi: ${err.message}`;
   } finally {
-    running = false;
+    current = null;
   }
 }
 
@@ -51,7 +69,8 @@ bot.command('start', (ctx) =>
   ctx.reply(
     `Chat ID của bạn: <code>${ctx.chat.id}</code>\n` +
       'Đặt giá trị này vào TELEGRAM_CHAT_ID trong .env rồi khởi động lại bot.\n\n' +
-      '/crawl — cào ngay\n/stats — thống kê',
+      '/crawl — cào ngay\n/stop — ngừng thu thập (dừng lượt đang chạy + tắt cào tự động)\n' +
+      '/resume — bật lại cào tự động\n/stats — thống kê',
     { parse_mode: 'HTML' },
   ),
 );
@@ -62,19 +81,45 @@ bot.command('crawl', async (ctx) => {
   await ctx.reply(await runCrawl('lệnh /crawl'));
 });
 
+bot.command('stop', async (ctx) => {
+  if (!isOwner(ctx)) return ctx.reply('Bạn không có quyền dùng lệnh này.');
+  if (!paused) await setPaused(true);
+  if (current) {
+    current.abort();
+    return ctx.reply('⏹ Đang dừng — xong tài liệu hiện tại sẽ ngừng. Đã tắt cào tự động, gõ /resume để bật lại.');
+  }
+  await ctx.reply('⏹ Đã tắt cào tự động. Gõ /resume để bật lại (vẫn dùng được /crawl để cào thủ công).');
+});
+
+bot.command('resume', async (ctx) => {
+  if (!isOwner(ctx)) return ctx.reply('Bạn không có quyền dùng lệnh này.');
+  if (!paused) return ctx.reply('Cào tự động đang bật sẵn rồi.');
+  await setPaused(false);
+  await ctx.reply(`▶️ Đã bật lại cào tự động theo lịch "${config.cron}".`);
+});
+
 bot.command('stats', async (ctx) => {
   if (!isOwner(ctx)) return ctx.reply('Bạn không có quyền dùng lệnh này.');
   const s = (await Store.load()).stats();
   const fmt = (obj, table) =>
     Object.entries(obj).map(([k, n]) => `  • ${table[k]?.label ?? k}: ${n}`).join('\n') || '  (chưa có)';
   await ctx.reply(
-    `📊 Đã xử lý ${s.total}, đã gửi ${s.sent}\n\nTheo khu vực:\n${fmt(s.byRegion, REGIONS)}\n\nTheo loại:\n${fmt(s.byType, TYPES)}`,
+    `${paused ? '⏸ Cào tự động: tạm dừng' : `▶️ Cào tự động: bật (${config.cron})`}${current ? ' · đang cào' : ''}\n` +
+      `📊 Đã xử lý ${s.total}, đã gửi ${s.sent}\n\nTheo khu vực:\n${fmt(s.byRegion, REGIONS)}\n\nTheo loại:\n${fmt(s.byType, TYPES)}`,
   );
 });
 
 bot.catch((err) => log.error(`Lỗi xử lý tin nhắn: ${err.message}`));
 
-cron.schedule(config.cron, () => runCrawl('cron'));
+cron.schedule(config.cron, () => {
+  if (!paused) runCrawl('cron');
+});
 
-log.info(`Bot đang chạy · lịch cào "${config.cron}" · phân loại bằng ${classifierName} · chat nhận: ${config.telegramChatId || '(chưa đặt TELEGRAM_CHAT_ID)'}`);
+log.info(`Bot đang chạy · lịch cào "${config.cron}"${paused ? ' (đang tạm dừng, /resume để bật)' : ''} · phân loại bằng ${classifierName} · chat nhận: ${config.telegramChatId || '(chưa đặt TELEGRAM_CHAT_ID)'}`);
+await bot.api.setMyCommands([
+  { command: 'crawl', description: 'Cào ngay' },
+  { command: 'stop', description: 'Ngừng thu thập' },
+  { command: 'resume', description: 'Bật lại cào tự động' },
+  { command: 'stats', description: 'Thống kê' },
+]).catch((err) => log.warn(`Không đặt được menu lệnh: ${err.message}`));
 await bot.start();

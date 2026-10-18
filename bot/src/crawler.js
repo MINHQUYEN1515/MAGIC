@@ -92,15 +92,17 @@ async function saveItem(doc, cls, images, sourcePdf) {
 
 /**
  * Cào tất cả nguồn, phân loại, lưu (chỉ PDF + ảnh) và gửi tài liệu mới.
- * @param {{ telegram?: { sendItem: Function }, dryRun?: boolean }} opts
+ * @param {{ telegram?: { sendItem: Function }, dryRun?: boolean, signal?: AbortSignal }} opts
+ *   signal: huỷ thì dừng sau tài liệu đang xử lý (kết quả có `stopped: true`).
  */
-export async function crawl({ telegram, dryRun = false } = {}) {
+export async function crawl({ telegram, dryRun = false, signal } = {}) {
   const runStart = Date.now();
   const store = await Store.load();
-  const result = { sent: 0, skipped: 0, errors: 0 };
+  const result = { sent: 0, skipped: 0, errors: 0, stopped: false };
   log.info(`Bắt đầu lượt cào${dryRun ? ' (dry-run)' : ''}: tối đa ${config.maxPerSource} tài liệu/nguồn, đã nhớ ${Object.keys(store.items).length} tài liệu`);
 
   for (const [name, fetchSource] of Object.entries(SOURCES)) {
+    if (signal?.aborted) break;
     const slog = log.child(name);
     const srcStart = Date.now();
     const stat = { sent: 0, noMedia: 0, irrelevant: 0, known: 0, errors: 0 };
@@ -108,6 +110,10 @@ export async function crawl({ telegram, dryRun = false } = {}) {
     slog.info('▶ bắt đầu nguồn');
 
     for await (const item of fetchSource(slog)) {
+      if (signal?.aborted) {
+        slog.info('dừng theo yêu cầu');
+        break;
+      }
       if (stat.sent >= config.maxPerSource) {
         slog.info(`đủ ${config.maxPerSource} tài liệu, dừng nguồn`);
         break;
@@ -176,6 +182,7 @@ export async function crawl({ telegram, dryRun = false } = {}) {
     result.errors += stat.errors;
   }
 
-  log.info(`Kết thúc lượt cào (${elapsed(runStart)}): ${result.sent} mới, ${result.skipped} bỏ qua, ${result.errors} lỗi`);
+  result.stopped = Boolean(signal?.aborted);
+  log.info(`${result.stopped ? 'Đã dừng' : 'Kết thúc'} lượt cào (${elapsed(runStart)}): ${result.sent} mới, ${result.skipped} bỏ qua, ${result.errors} lỗi`);
   return result;
 }
