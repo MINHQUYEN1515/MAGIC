@@ -23,6 +23,7 @@ test('gửi url + output_schema không có additionalProperties, trả kết qu�
   assert.equal(sent.init.headers['X-API-Key'], 'k');
   assert.equal(sent.body.url, doc.url);
   assert.equal('additionalProperties' in sent.body.output_schema, false);
+  assert.equal('agent_config' in sent.body, false); // max_steps tuỳ chỉnh cần tài khoản beta
   assert.match(sent.body.goal, /1\. https:\/\/img\/1\.jpg — lá bùa/);
   assert.equal(cls.method, 'tinyfish');
   assert.equal(cls.type, 'phu_chu');
@@ -52,4 +53,14 @@ test('output_schema chỉ chứa từ khoá TinyFish hỗ trợ (không descript
   assert.ok(OUTPUT_SCHEMA.properties.relevant.type === 'boolean');
   assert.ok(OUTPUT_SCHEMA.properties.region.enum.length > 0);
   assert.ok(OUTPUT_SCHEMA.required.includes('hinh_anh'));
+});
+
+test('403 do tính năng beta chưa mở → không gắn status 403 (không bị coi là key sai)', async () => {
+  globalThis.fetch = reply(403, { error: { message: 'Your account is not enabled for custom max steps yet. Join the beta program at /beta, then retry.' } });
+  await assert.rejects(createTinyFishClassifier({ apiKey: 'k' })(doc), (err) => err.status === undefined && /beta/.test(err.message));
+});
+
+test('403 khác (key bị chặn) → giữ status 403', async () => {
+  globalThis.fetch = reply(403, { error: { message: 'Forbidden' } });
+  await assert.rejects(createTinyFishClassifier({ apiKey: 'k' })(doc), (err) => err.status === 403);
 });

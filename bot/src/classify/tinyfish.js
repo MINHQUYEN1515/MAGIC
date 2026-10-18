@@ -6,8 +6,6 @@ import { SCHEMA, SYSTEM } from './openai.js';
 const API_URL = 'https://agent.tinyfish.ai/v1/automation/run';
 // Đoạn văn bản gửi kèm goal để agent không phải cuộn đọc hết trang dài.
 const MAX_CHARS = 3_000;
-// Chỉ cần đọc trang và trả lời, giới hạn số bước để không tốn ví khi agent đi lạc.
-const MAX_STEPS = 15;
 const TIMEOUT_MS = 5 * 60_000;
 
 // output_schema của TinyFish chỉ nhận một số từ khoá JSON Schema (không có description, additionalProperties...).
@@ -66,7 +64,7 @@ export function createTinyFishClassifier({ apiKey }) {
           goal,
           output_schema: OUTPUT_SCHEMA,
           browser_profile: 'lite',
-          agent_config: { max_steps: MAX_STEPS },
+          // Không gửi agent_config.max_steps: tài khoản chưa vào beta sẽ bị 403. Goal đã dặn chỉ đọc trang này.
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -80,8 +78,11 @@ export function createTinyFishClassifier({ apiKey }) {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg = body.error?.message ?? body.message ?? body.detail ?? res.statusText;
-      throw new TinyFishError(`${res.status} ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`, {
-        status: res.status,
+      const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      // 403 "not enabled ... beta" là tính năng chưa mở cho tài khoản, không phải key sai: đừng tắt TinyFish.
+      const featureLocked = res.status === 403 && /not enabled|beta/i.test(text);
+      throw new TinyFishError(`${res.status} ${text}`, {
+        status: featureLocked ? undefined : res.status,
         code: res.status === 402 ? 'insufficient_quota' : body.error?.code,
         headers: res.headers,
       });
