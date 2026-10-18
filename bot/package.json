@@ -1,0 +1,22 @@
+{
+  "name": "magic-bot",
+  "version": "1.0.0",
+  "description": "Bot cào và phân loại tài liệu về bùa ngải (Trung Quốc, Việt Nam, dân tộc thiểu số), gửi về Telegram",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "crawl": "node --env-file-if-exists=.env src/cli.js",
+    "crawl:dry": "node --env-file-if-exists=.env src/cli.js --dry-run",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0",
+    "node-cron": "^4.6.0",
+    "openai": "^7.38.0",
+    "pdfkit": "^0.20.2"
+  }
+}

@@ -1,0 +1,19 @@
+name: magic-bot
+
+services:
+  bot:
+    build: .
+    image: magic-bot
+    container_name: magic-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      # Tài liệu đã cào (data/docs) và danh sách đã gửi (data/seen.json)
+      - ./data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
