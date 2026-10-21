@@ -12,6 +12,7 @@ import (
 
 	"magic/backend/internal/config"
 	"magic/backend/internal/database"
+	"magic/backend/internal/di"
 	"magic/backend/internal/server"
 )
 
@@ -32,7 +33,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	app := server.New(cfg, db)
+	app := server.New(cfg, di.NewContainer(cfg, db))
 	if err := app.Migrate(); err != nil {
 		return err
 	}

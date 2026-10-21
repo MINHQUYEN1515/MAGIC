@@ -40,10 +40,10 @@ cp .env.example .env      # JWT_SECRET, ZALO_APP_SECRET
 make db-up                # Postgres via docker compose
 make run                  # :8080 (HTTP_PORT)
 make test                 # go test ./...
-go test ./internal/pkg/token -run TestName   # single test
+go test ./pkg/token -run TestName            # single test
 ```
 
-Feature modules under `internal/modules/<name>/` implement `server.Module` (`Models() []any`, `RegisterRoutes(public, protected *gin.RouterGroup)`) and are registered in the `modules` slice in `internal/server/router.go`; their models are AutoMigrated at startup. `protected` is `/api/v1` behind `middleware.RequireAuth` (JWT Bearer); read the user with `middleware.UserID(c)`. Modules reuse each other via exported fields (e.g. `auth` takes `userMod.Repo`). `internal/pkg/` holds business-free clients (`token` JWT, `zalo` Graph API with `appsecret_proof`).
+Feature modules under `internal/modules/<name>/` implement `modules.Module` (`internal/modules/module.go`: `Models() []any`, `RegisterRoutes(public, protected *gin.RouterGroup)`). All wiring lives in `internal/di/container.go` (composition root, built in `cmd/api/main.go`): add a field, construct it in `NewContainer`, and list it in `Modules()`; `server.New(cfg, container)` only mounts middleware and routes. Module models are AutoMigrated at startup. `protected` is `/api/v1` behind `middleware.RequireAuth` (JWT Bearer); read the user with `middleware.UserID(c)`. Modules reuse each other via exported fields (e.g. `auth` takes `c.User.Repo`). `pkg/` holds business-free clients (`token` JWT, `zalo` Graph API with `appsecret_proof`).
 
 Login flow: mini app `getAccessToken()` (zmp-sdk) → `POST /api/v1/auth/zalo {"access_token"}` → backend verifies with `graph.zalo.me/v2.0/me`, upserts user, returns `{token, user}`.
 

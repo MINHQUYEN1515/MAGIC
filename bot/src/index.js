@@ -147,22 +147,30 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   });
 }
 
+// onStart của grammY chạy trước getUpdates đầu tiên, nên chỉ coi là đang giữ polling khi getUpdates
+// thật sự thành công. Bỏ qua lần getUpdates cuối mà bot.stop() gửi để xác nhận offset.
+bot.api.config.use(async (prev, method, payload, signal) => {
+  const res = await prev(method, payload, signal);
+  if (method === 'getUpdates' && res.ok && !polling && bot.isRunning()) {
+    polling = true;
+    log.info(`Đã nhận quyền long polling Telegram: @${bot.botInfo.username}`);
+  }
+  return res;
+});
+
 // 409: Telegram chỉ cho một tiến trình getUpdates mỗi token. Thường là bản deploy cũ chưa tắt
 // hoặc đang chạy thêm `npm start` ở máy khác → đợi rồi thử lại thay vì crash.
 for (let attempt = 1; ; attempt++) {
   try {
     await bot.start({
-      onStart: (me) => {
-        polling = true;
-        log.info(`Đã kết nối Telegram: @${me.username}`);
-      },
+      onStart: (me) => log.info(`Token hợp lệ (@${me.username}) → đang chờ getUpdates`),
     });
     break; // bot.stop() được gọi
   } catch (err) {
     polling = false;
     if (!(err instanceof GrammyError && err.error_code === 409)) throw err;
     const wait = Math.min(60, 10 * attempt);
-    log.warn(`Telegram 409: đang có bot khác chạy cùng TELEGRAM_BOT_TOKEN (bản deploy cũ hoặc máy khác) → thử lại sau ${wait}s (lần ${attempt})`);
+    log.warn(`Telegram 409 (${err.description}): đang có bot khác chạy cùng TELEGRAM_BOT_TOKEN (bản deploy cũ hoặc máy khác) → thử lại sau ${wait}s (lần ${attempt})`);
     await sleep(wait * 1000);
   }
 }
