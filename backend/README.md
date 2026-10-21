@@ -11,38 +11,39 @@ make run                  # http://localhost:8080
 make test
 ```
 
-## Cấu trúc (theo tính năng)
+## Cấu trúc
 
 ```
-cmd/api/                 entrypoint, graceful shutdown
+cmd/api/                 entrypoint, migrate, graceful shutdown
 internal/
-  modules/               mỗi tính năng = 1 package tự chứa
-    user/                model, repository, handler, module
-    auth/                service, handler, module (đăng nhập Zalo)
+  di/                    container.go: nơi DUY NHẤT khởi tạo repo, service, handler, middleware
+  routes/                routes tổng (routes.go) + route con của từng module (auth.go, user.go)
+  modules/               mỗi tính năng = 1 package (model, repository, service, handler)
+    user/
+    auth/                đăng nhập Zalo
     health/              /health
-  pkg/                   thư viện dùng chung, không chứa nghiệp vụ
-    token/               tạo/kiểm tra JWT
-    zalo/                Zalo Graph API client
   middleware/            RequireAuth, UserID(c)
   config/                biến môi trường
-  database/              kết nối Postgres
-  server/                gom các module, CORS, AutoMigrate
+  database/              kết nối Postgres, Migrate (danh sách bảng)
+  server/                tạo Gin, CORS, gắn routes tổng
+pkg/                     thư viện dùng chung, không chứa nghiệp vụ
+  token/                 tạo/kiểm tra JWT
+  zalo/                  Zalo Graph API client
 ```
 
 ### Thêm tính năng mới (vd: `order`)
 
-1. Tạo `internal/modules/order/` gồm `model.go`, `repository.go`, `service.go`, `handler.go`, `module.go`.
-2. `module.go` cài interface `server.Module`:
+1. Tạo `internal/modules/order/` gồm `model.go`, `repository.go`, `service.go`, `handler.go`.
+2. Khai báo trong `internal/di/container.go`: thêm field `OrderRepo`, `OrderHandler`... và khởi tạo chúng trong `NewContainer`.
+3. Tạo `internal/routes/order.go`:
    ```go
-   func (m *Module) Models() []any { return []any{&Order{}} }
-   func (m *Module) RegisterRoutes(public, protected *gin.RouterGroup) {
-       protected.GET("/orders", m.handler.List)
+   func orderRoutes(api *gin.RouterGroup, c *di.Container) {
+       g := api.Group("/orders", c.RequireAuth)
+       g.GET("", c.OrderHandler.List) // GET /api/v1/orders
    }
    ```
-3. Thêm `order.NewModule(db)` vào danh sách `modules` trong `internal/server/router.go`.
-   Bảng sẽ tự được tạo khi khởi động.
-
-Module có thể dùng lại module khác qua field export (vd: `auth` dùng `userMod.Repo`).
+   rồi gọi `orderRoutes(api, c)` trong `internal/routes/routes.go`.
+4. Có bảng thì thêm `&order.Order{}` vào `internal/database/migrate.go`.
 
 ## API
 

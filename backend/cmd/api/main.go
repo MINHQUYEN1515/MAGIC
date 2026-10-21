@@ -33,14 +33,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	app := server.New(cfg, di.NewContainer(cfg, db))
-	if err := app.Migrate(); err != nil {
+	if err := database.Migrate(db); err != nil {
 		return err
 	}
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           app.Engine,
+		Handler:           server.New(cfg, di.NewContainer(cfg, db)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
