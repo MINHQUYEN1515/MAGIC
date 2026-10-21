@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"magic/backend/internal/modules/user"
-	"magic/backend/internal/pkg/token"
-	"magic/backend/internal/pkg/zalo"
+	"magic/backend/pkg/token"
+	"magic/backend/pkg/zalo"
 )
 
 type Service struct {

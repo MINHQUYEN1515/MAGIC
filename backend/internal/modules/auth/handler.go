@@ -3,11 +3,10 @@ package auth
 import (
 	"errors"
 	"log/slog"
+	"magic/backend/pkg/zalo"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"magic/backend/internal/pkg/zalo"
 )
 
 type Handler struct {

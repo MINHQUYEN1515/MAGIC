@@ -12,8 +12,8 @@ import (
 	"magic/backend/internal/modules/auth"
 	"magic/backend/internal/modules/health"
 	"magic/backend/internal/modules/user"
-	"magic/backend/internal/pkg/token"
-	"magic/backend/internal/pkg/zalo"
+	"magic/backend/pkg/token"
+	"magic/backend/pkg/zalo"
 )
 
 // Module là hợp đồng chung mà mỗi tính năng trong internal/modules phải thoả mãn.

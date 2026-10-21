@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Monorepo with three independent projects (no shared code or root tooling): `bot/` (Node), `backend/` (Go), `miniapp/` (empty placeholder for a Zalo Mini App). Run commands from inside each project directory. Code comments, log messages, user-facing text and READMEs are in Vietnamese — keep that convention.
+Monorepo with three independent projects (no shared code or root tooling): `bot/` (Node), `backend/` (Go), `miniapp/` (React frontend for the Zalo Mini App). Run commands from inside each project directory. Code comments, log messages, user-facing text and READMEs are in Vietnamese — keep that convention.
 
 ## bot/ — document crawler → Telegram
 
@@ -13,8 +13,8 @@ npm start                 # bot mode: Telegram commands + cron crawl (loads .env
 npm run crawl             # one crawl, sends to Telegram
 npm run crawl:dry         # one crawl, saves to data/ only, does NOT write data/seen.json
 npm test                  # all tests in test/
-node --test test/tinyfish.test.js                       # single file
-node --test --test-name-pattern="402" test/             # single test by name
+node --test agent/tinyfish.test.js                       # single file
+node --test --test-name-pattern="402" agent/             # single test by name
 LOG_LEVEL=debug npm run crawl:dry                       # per-request / per-image logs
 ```
 
@@ -46,3 +46,14 @@ go test ./internal/pkg/token -run TestName   # single test
 Feature modules under `internal/modules/<name>/` implement `server.Module` (`Models() []any`, `RegisterRoutes(public, protected *gin.RouterGroup)`) and are registered in the `modules` slice in `internal/server/router.go`; their models are AutoMigrated at startup. `protected` is `/api/v1` behind `middleware.RequireAuth` (JWT Bearer); read the user with `middleware.UserID(c)`. Modules reuse each other via exported fields (e.g. `auth` takes `userMod.Repo`). `internal/pkg/` holds business-free clients (`token` JWT, `zalo` Graph API with `appsecret_proof`).
 
 Login flow: mini app `getAccessToken()` (zmp-sdk) → `POST /api/v1/auth/zalo {"access_token"}` → backend verifies with `graph.zalo.me/v2.0/me`, upserts user, returns `{token, user}`.
+
+## miniapp/ — React 19 + TS + TanStack Query v5 + Vite, yarn (classic)
+
+```bash
+yarn dev                  # :3000, needs VITE_API_BASE_URL in .env
+yarn test                 # vitest + Testing Library (jsdom)
+yarn lint && yarn typecheck
+yarn vitest run -t "tên test"   # single test
+```
+
+Clean architecture per feature in `src/features/<name>/{domain,application,infrastructure,presentation}`; ESLint enforces that `domain`/`application` import no React/TanStack/infrastructure/presentation/app. `src/app/di/container.ts` is the only place that wires implementations; hooks get use cases via `useDeps()`. Query keys live in `presentation/<name>Keys.ts`. DTOs mirror the backend's snake_case JSON and are mapped to camelCase entities in `infrastructure/`. TypeScript is pinned to 6.x because typescript-eslint does not support TS 7 yet.

@@ -1,12 +1,11 @@
 package middleware
 
 import (
+	"magic/backend/pkg/token"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	"magic/backend/internal/pkg/token"
 )
 
 const userIDKey = "userID"
