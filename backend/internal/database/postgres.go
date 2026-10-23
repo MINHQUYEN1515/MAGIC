@@ -1,34 +1,23 @@
 package database
 
 import (
-	"fmt"
-	"time"
+	"magic/backend/internal/config"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-func Connect(dsn string, debug bool) (*gorm.DB, error) {
-	logLevel := logger.Warn
-	if debug {
-		logLevel = logger.Info
-	}
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logLevel),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("kết nối postgres: %w", err)
-	}
-
-	sqlDB, err := db.DB()
+func Connect(config *config.Config) (*gorm.DB, error) {
+	dsn := config.DatabaseURL
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
+	database, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	database.SetMaxIdleConns(10)
+	database.SetMaxOpenConns(100)
 	return db, nil
 }
