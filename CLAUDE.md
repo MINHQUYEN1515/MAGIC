@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Monorepo with three independent projects (no shared code or root tooling): `bot/` (Node), `backend/` (Go), `miniapp/` (React frontend for the Zalo Mini App). Run commands from inside each project directory. Code comments, log messages, user-facing text and READMEs are in Vietnamese — keep that convention.
+Monorepo with three independent projects (no shared code or root tooling): `bot/` (Node), `backend/` (Go), `web/` (React web frontend). Run commands from inside each project directory. Code comments, log messages, user-facing text and READMEs are in Vietnamese — keep that convention.
 
 ## bot/ — document crawler → Telegram
 
@@ -33,7 +33,7 @@ For each source → for each item: skip if in `Store` → `item.load()` → down
 
 Docker: `docker compose up -d --build` (mounts `./data`, `TZ=Asia/Ho_Chi_Minh` for cron).
 
-## backend/ — Go + Gin + GORM/Postgres, Zalo Mini App login
+## backend/ — Go + Gin + GORM/Postgres, email/password auth
 
 ```bash
 cp .env.example .env      # JWT_SECRET, ZALO_APP_SECRET
@@ -45,9 +45,9 @@ go test ./pkg/token -run TestName            # single test
 
 Feature packages under `internal/modules/<name>/` hold only model/repository/service/handler — no wiring, no routes. All construction (clients, repos, services, handlers, `RequireAuth` middleware) lives in `internal/di/container.go` (`NewContainer`, built in `cmd/api/main.go`). Routes are declared centrally: `internal/routes/routes.go` calls one `<name>Routes(api, c)` per module, each in its own file `internal/routes/<name>.go`, using handlers from the container; protected routes add `c.RequireAuth`, and handlers read the user with `middleware.UserID(c)`. Tables are listed in `internal/database/migrate.go` (AutoMigrate at startup). `server.New(cfg, container)` only sets up Gin, CORS and mounts `routes.Register`. `pkg/` holds business-free clients (`token` JWT, `zalo` Graph API with `appsecret_proof`).
 
-Login flow: mini app `getAccessToken()` (zmp-sdk) → `POST /api/v1/auth/zalo {"access_token"}` → backend verifies with `graph.zalo.me/v2.0/me`, upserts user, returns `{token, user}`.
+Auth: `POST /api/v1/auth/register {name,email,password}` (201, 409 on duplicate email) and `POST /api/v1/auth/login {email,password}` (401 on bad credentials) both return `{token, user}`. Passwords are bcrypt (8–72 chars), emails trimmed + lowercased. `user.ZaloID`/`Email` are nullable unique pointers; duplicate detection relies on `TranslateError: true` in `database/postgres.go` (`gorm.ErrDuplicatedKey`). The old `POST /auth/zalo` (Graph API `/me` + `appsecret_proof`) is kept but unused by `web/`.
 
-## miniapp/ — React 19 + TS + TanStack Query v5 + Vite, yarn (classic)
+## web/ — React 19 + TS + TanStack Query v5 + Vite, yarn (classic)
 
 ```bash
 yarn dev                  # :3000, needs VITE_API_BASE_URL in .env
@@ -56,4 +56,4 @@ yarn lint && yarn typecheck
 yarn vitest run -t "tên test"   # single test
 ```
 
-Clean architecture per feature in `src/features/<name>/{domain,application,infrastructure,presentation}`; ESLint enforces that `domain`/`application` import no React/TanStack/infrastructure/presentation/app. `src/app/di/container.ts` is the only place that wires implementations; hooks get use cases via `useDeps()`. Query keys live in `presentation/<name>Keys.ts`. DTOs mirror the backend's snake_case JSON and are mapped to camelCase entities in `infrastructure/`. TypeScript is pinned to 6.x because typescript-eslint does not support TS 7 yet.
+Clean architecture per feature in `src/features/<name>/{domain,application,infrastructure,presentation}`; ESLint enforces that `domain`/`application` import no React/TanStack/infrastructure/presentation/app. `src/app/di/container.ts` is the only place that wires implementations; hooks get use cases via `useDeps()`. Query keys live in `presentation/<name>Keys.ts`. DTOs mirror the backend's snake_case JSON and are mapped to camelCase entities in `infrastructure/`. TypeScript is pinned to 6.x because typescript-eslint does not support TS 7 yet. Auth is email/password: `Login`/`Register` use cases validate + normalize before calling the API; `/login` and `/register` sit under `GuestOnly`, `/` under `RequireAuth` (both just check `tokenStore`). Test helpers and fixtures live in `src/agent/`.

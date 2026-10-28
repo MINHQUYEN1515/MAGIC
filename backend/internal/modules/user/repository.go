@@ -8,7 +8,10 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var ErrNotFound = errors.New("không tìm thấy người dùng")
+var (
+	ErrNotFound   = errors.New("không tìm thấy người dùng")
+	ErrEmailTaken = errors.New("email đã được sử dụng")
+)
 
 type Repository struct {
 	db *gorm.DB
@@ -25,6 +28,24 @@ func (r *Repository) FindByID(ctx context.Context, id uint) (*User, error) {
 		return nil, ErrNotFound
 	}
 	return &u, err
+}
+
+func (r *Repository) FindByEmail(ctx context.Context, email string) (*User, error) {
+	var u User
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	return &u, err
+}
+
+// Create tạo user mới; trùng email trả về ErrEmailTaken (cần TranslateError trong gorm.Config).
+func (r *Repository) Create(ctx context.Context, u *User) error {
+	err := r.db.WithContext(ctx).Create(u).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return ErrEmailTaken
+	}
+	return err
 }
 
 // UpsertByZaloID tạo mới hoặc cập nhật tên/avatar theo zalo_id.

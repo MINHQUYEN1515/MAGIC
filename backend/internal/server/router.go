@@ -21,7 +21,7 @@ func New(cfg *config.Config, c *di.Container) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())                          // in log mỗi request
 	r.Use(gin.Recovery())                        // handler bị panic thì trả 500 thay vì sập server
-	r.Use(cors.New(corsConfig(cfg.CORSOrigins))) // cho phép mini app (khác domain) gọi API
+	r.Use(cors.New(corsConfig(cfg.CORSOrigins))) // cho phép web (khác domain) gọi API
 
 	routes.Register(r, c)
 	return r

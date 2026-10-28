@@ -9,7 +9,10 @@ import (
 
 func Connect(config *config.Config) (*gorm.DB, error) {
 	dsn := config.DatabaseURL
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		// Đổi lỗi riêng của Postgres (vd. trùng unique) thành gorm.ErrDuplicatedKey...
+		TranslateError: true,
+	})
 	if err != nil {
 		return nil, err
 	}

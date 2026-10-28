@@ -1,14 +1,11 @@
 package token
 
 import (
-	"errors"
 	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
-
-var ErrInvalidToken = errors.New("token không hợp lệ")
 
 type Manager struct {
 	secret []byte
@@ -36,11 +33,11 @@ func (m *Manager) Parse(tokenStr string) (uint, error) {
 		return m.secret, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
-		return 0, ErrInvalidToken
+		return 0, err
 	}
 	id, err := strconv.ParseUint(claims.Subject, 10, 64)
 	if err != nil {
-		return 0, ErrInvalidToken
+		return 0, err
 	}
 	return uint(id), nil
 }

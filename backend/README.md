@@ -1,6 +1,6 @@
 # Magic Backend
 
-Go + Gin + PostgreSQL (GORM), đăng nhập qua Zalo Mini App.
+Go + Gin + PostgreSQL (GORM), đăng ký/đăng nhập bằng email + mật khẩu (giữ thêm đăng nhập Zalo).
 
 ## Chạy local
 
@@ -50,10 +50,18 @@ pkg/                     thư viện dùng chung, không chứa nghiệp vụ
 | Method | Path               | Auth | Mô tả |
 |--------|--------------------|------|-------|
 | GET    | `/health`          | –    | Kiểm tra server + DB |
+| POST   | `/api/v1/auth/register` | – | `{"name", "email", "password"}` → 201 `{"token", "user"}`; 409 nếu trùng email |
+| POST   | `/api/v1/auth/login`    | – | `{"email", "password"}` → `{"token", "user"}`; 401 nếu sai |
 | POST   | `/api/v1/auth/zalo`| –    | `{"access_token": "..."}` → `{"token", "user"}` |
 | GET    | `/api/v1/me`       | JWT  | Thông tin người dùng hiện tại |
 
-## Luồng đăng nhập Zalo
+## Đăng ký / đăng nhập email
+
+Mật khẩu 8–72 ký tự (giới hạn của bcrypt), lưu dạng bcrypt hash (`password_hash`, không bao giờ trả ra JSON).
+Email được trim + lowercase trước khi lưu/tìm. Sai email hay sai mật khẩu đều trả cùng lỗi 401.
+`zalo_id` và `email` đều nullable + unique: một user có thể chỉ có một trong hai.
+
+## Luồng đăng nhập Zalo (không còn dùng ở web/, giữ lại API)
 
 1. Mini app gọi `getAccessToken()` từ `zmp-sdk`.
 2. Gửi token đó lên `POST /api/v1/auth/zalo`.
