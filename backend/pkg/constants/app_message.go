@@ -1,4 +1,4 @@
-package AppMessage
+package constants
 
 const (
 	SuccessMessage  = "Thành công"

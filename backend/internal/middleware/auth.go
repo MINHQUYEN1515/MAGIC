@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
+	AppConstants "magic/backend/pkg/constants"
+
 	"github.com/gin-gonic/gin"
 )
-
-const userIDKey = "userID"
 
 // RequireAuth yêu cầu header "Authorization: Bearer <jwt>".
 func RequireAuth(tm *token.Manager) gin.HandlerFunc {
@@ -23,12 +23,12 @@ func RequireAuth(tm *token.Manager) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token không hợp lệ"})
 			return
 		}
-		c.Set(userIDKey, id)
+		c.Set(AppConstants.UserIDKey, id)
 		c.Next()
 	}
 }
 
 // UserID trả về ID người dùng đã xác thực (dùng sau RequireAuth).
 func UserID(c *gin.Context) uint {
-	return c.GetUint(userIDKey)
+	return c.GetUint(AppConstants.UserIDKey)
 }
