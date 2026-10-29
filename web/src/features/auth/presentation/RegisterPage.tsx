@@ -22,7 +22,7 @@ export function RegisterPage() {
       return;
     }
     setMismatch(false);
-    register.mutate({ name, email, password }, { onSuccess: () => navigate('/', { replace: true }) });
+    register.mutate({ name, email, password }, { onSuccess: () => navigate('/profile', { replace: true }) });
   };
 
   const error = mismatch ? 'Mật khẩu nhập lại không khớp' : register.error && errorMessage(register.error);

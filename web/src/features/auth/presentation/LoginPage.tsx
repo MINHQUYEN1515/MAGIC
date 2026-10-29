@@ -12,7 +12,7 @@ export function LoginPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    login.mutate({ email, password }, { onSuccess: () => navigate('/', { replace: true }) });
+    login.mutate({ email, password }, { onSuccess: () => navigate('/profile', { replace: true }) });
   };
 
   return (

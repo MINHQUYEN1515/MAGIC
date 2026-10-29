@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'outline' | 'dark';
 };
 
 export function Button({ variant = 'primary', className = '', ...props }: Props) {

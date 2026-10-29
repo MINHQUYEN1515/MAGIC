@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var (
@@ -46,12 +45,4 @@ func (r *Repository) Create(ctx context.Context, u *User) error {
 		return ErrEmailTaken
 	}
 	return err
-}
-
-// UpsertByZaloID tạo mới hoặc cập nhật tên/avatar theo zalo_id.
-func (r *Repository) UpsertByZaloID(ctx context.Context, u *User) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "zalo_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"name", "avatar", "updated_at"}),
-	}).Create(u).Error
 }

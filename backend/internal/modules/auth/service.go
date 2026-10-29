@@ -36,9 +36,6 @@ func (s *Service) LoginWithZalo(ctx context.Context, accessToken string) (string
 		Name:   profile.Name,
 		Avatar: profile.Picture.Data.URL,
 	}
-	if err := s.users.UpsertByZaloID(ctx, u); err != nil {
-		return "", nil, err
-	}
 
 	return s.issue(u)
 }
